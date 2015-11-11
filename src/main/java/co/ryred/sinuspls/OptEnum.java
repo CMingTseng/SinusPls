@@ -54,7 +54,8 @@ public enum OptEnum
 	OUTPUT_FOLDER( "out", "outFolder", true, "The folder to copy the files.\nThis is required." ),
 	DB_FILE( "db", "dbFile", true, "The folder to copy the files.\nThis is required." ),
 	HELP( "?", "help", false, "Shows this message." ),
-	FIX( "f", "fix", false, "Only fix the broken files." );
+	FIX( "f", "fix", false, "Only fix the broken files." ),
+	VERBOSE( "v", "verbose", false, "display aditional output." );
 
 	private final static Map<Option, OptEnum> BY_OPTION = new HashMap<>();
 

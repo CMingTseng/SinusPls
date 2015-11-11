@@ -67,6 +67,7 @@ public class SinusPls
 {
 
 	public static final Gson GSON = new GsonBuilder().registerTypeAdapterFactory( new NullStringToEmptyAdapterFactory() ).disableHtmlEscaping().create();
+	public static boolean verbose = false;
 	private static Connection connection;
 
 	public static void main( String... args ) throws ParseException, ClassNotFoundException, IOException
@@ -82,6 +83,9 @@ public class SinusPls
 			options.addOption( option.getOption() );
 
 		CommandLine cmd = new DefaultParser().parse( options, args );
+
+		verbose = ( cmd.hasOption( OptEnum.VERBOSE.getLongOpt() ) || cmd.hasOption( OptEnum.VERBOSE.getShortOpt() ) );
+		printVerbose( "Verbose output is being printed!" );
 
 		// Deal with help first.
 		if ( cmd.hasOption( OptEnum.HELP.getLongOpt() ) || cmd.hasOption( OptEnum.HELP.getShortOpt() ) ) {
@@ -106,6 +110,7 @@ public class SinusPls
 				return;
 			}
 
+			printVerbose( "Output folder\n    " + outputFolder );
 			outputFolderFile = new File( outputFolder );
 			if ( !outputFolderFile.exists() ) { outputFolderFile.mkdirs(); }
 
@@ -116,6 +121,7 @@ public class SinusPls
 			Options outOpts = new Options();
 			outOpts.addOption( OptEnum.DB_FILE.getOption() );
 			new HelpFormatter().printHelp( "The database file is not defined.", outOpts );
+			return;
 		}
 		else {
 
@@ -127,6 +133,7 @@ public class SinusPls
 				return;
 			}
 
+			printVerbose( "Database file\n    " + databaseFile );
 			dbFile = new File( databaseFile );
 			if ( !dbFile.exists() ) {
 				System.err.println( "database file does not exist." );
@@ -143,6 +150,7 @@ public class SinusPls
 
 			if ( inputFile == null ) inputFile = ".";
 
+			printVerbose( "Input folder\n    " + inputFile );
 			inputFolderFile = new File( inputFile );
 			if ( !inputFolderFile.exists() ) {
 				System.err.println( "The input folder doesn't exist." );
@@ -152,16 +160,23 @@ public class SinusPls
 		}
 		else {
 			inputFolderFile = new File( "." );
+			printVerbose( "Input folder\n    " + inputFolderFile.getPath() );
 			if ( !inputFolderFile.exists() ) {
 				System.err.println( "The input folder doesn't exist." );
 				return;
 			}
 		}
 
+		// Init the database.
 		Class.forName( "org.sqlite.JDBC" );
+		printVerbose( "SQLite JDBC driver is in the classpath." );
 
 		try {
-			connection = DriverManager.getConnection( "jdbc:sqlite:" + inputFolderFile.getPath() );
+			String uri = "jdbc:sqlite:" + dbFile.getPath();
+			printVerbose( "Database URI:\n    " + uri );
+			printVerbose( "Connecting to the SQLite DB...." );
+			connection = DriverManager.getConnection( uri );
+			printVerbose( "Connected." );
 		} catch ( SQLException e ) {
 			System.err.println( "Unable to load to the database!" );
 			e.printStackTrace();
@@ -169,6 +184,8 @@ public class SinusPls
 			return;
 		}
 
+		// Load errors and stuff like that.. Just dirty. Might need more doing.
+		printVerbose( "Loading errored files." );
 		ArrayList<String> erroredPaths = new ArrayList<>();
 		File errorFile = new File( ".sinuspls_err" );
 		if ( errorFile.exists() ) {
@@ -179,7 +196,6 @@ public class SinusPls
 			while ( ( line = br.readLine() ) != null ) { erroredPaths.add( line ); }
 
 			br.close();
-
 			FileUtils.forceDelete( errorFile );
 
 		}
@@ -187,7 +203,10 @@ public class SinusPls
 		errorFile.createNewFile();
 		BufferedWriter bw = new BufferedWriter( new FileWriter( errorFile ) );
 
-		Collection<File> files = FileUtils.listFiles( inputFolderFile, new String[]{ ".mp3" }, true );
+		// Start looping through them all.
+		printVerbose( "Starting processing!" );
+		Collection<File> files = FileUtils.listFiles( inputFolderFile, new String[]{ "mp3" }, true );
+		System.out.println( "Files matching *.mp3:" + files.size() );
 		for ( File maybeMP3File : files ) {
 
 			if ( cmd.hasOption( OptEnum.FIX.getShortOpt() ) || cmd.hasOption( OptEnum.FIX.getLongOpt() ) ) {
@@ -198,9 +217,9 @@ public class SinusPls
 				processMP3File( maybeMP3File, outputFolderFile, connection );
 			} catch ( Exception e ) {
 				if ( e instanceof UnsupportedAudioFileException ) {
-					System.err.println( "The suspected audio file isn't MP3..\n" + maybeMP3File.getPath() );
+					System.err.println( "The audio file isn't MP3..\n" + maybeMP3File.getPath() );
 					e.printStackTrace();
-					System.err.println( "The suspected audio file isn't MP3..\n" + maybeMP3File.getPath() );
+					System.err.println( "The audio file isn't MP3..\n" + maybeMP3File.getPath() );
 				}
 				else if ( e instanceof SQLException ) {
 					System.err.println( "Something went wrong whilst editing the database!" );
@@ -235,7 +254,12 @@ public class SinusPls
 
 	private static void processMP3File( File maybeMP3File, File outputFolder, Connection connection ) throws IOException, UnsupportedAudioFileException, SQLException
 	{
+
+		printVerbose( "- Processing " + FilenameUtils.removeExtension( maybeMP3File.getName() ) );
+
 		AudioFileFormat fileFormat = AudioSystem.getAudioFileFormat( maybeMP3File );
+		printVerbose( "      File IS mp3." );
+
 		if ( fileFormat instanceof TAudioFileFormat ) {
 			Map<String, Object> properties = fileFormat.properties();
 
@@ -265,6 +289,7 @@ public class SinusPls
 
 			try {
 				stmt.execute();
+				printVerbose( "      Completed file conversion!" );
 			} catch ( Exception e ) {
 				FileUtils.forceDelete( new File( outputFolder, path ) );
 				throw e;
@@ -280,6 +305,13 @@ public class SinusPls
 		String md5 = DigestUtils.md5Hex( fis );
 		fis.close();
 		return UUID.fromString( md5.substring( 0, 8 ) + "-" + md5.substring( 8, 12 ) + "-" + md5.substring( 12, 16 ) + "-" + md5.substring( 16, 20 ) + "-" + md5.substring( 20, 32 ) );
+	}
+
+	public static void printVerbose( String string )
+	{
+		if ( !verbose ) return;
+		for ( String output : string.split( "\\n" ) )
+			System.out.println( "[D] | " + output );
 	}
 
 }
