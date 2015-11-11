@@ -1,6 +1,18 @@
 # **SinusPls**
 **A file importer for [SinusBot](https://frie.se/ts3bot/).**
 
+## **Downloading, Contributing, & Building**
+[![Build Status](http://ci.ac3-servers.eu/job/SinusPls/badge/icon)](http://ci.ac3-servers.eu/job/SinusPls/)
+
+Download the jar file from [my build server](http://ci.ac3-servers.eu/job/SinusPls/lastSuccessfulBuild/artifact/target/SinusPls.jar).
+It requires Java 7 to run, and all classpath dependencies are open source and included.
+
+To contribute, it's in Java, it's got a formatting you can cope with, and it's on github, you should know what to do. I'm not too fussy.
+
+To build, just use maven! `mvn clean install`.
+
+** Well wasn't that simple! **
+
 ## **About**
 SinusBot is great but due to it's early stages of development is lacking some features. One of those is a file importer. This has been requested since the beginning of development and would be extremely useful! Well here it is!
 
